@@ -1,4 +1,4 @@
-# MindSpore Downloader with pypdl
+# MindSpore Downloader
 
 这是一个用于下载 MindSpore whl 包的工具，现在使用 pypdl 库提供更强大的下载功能。
 
