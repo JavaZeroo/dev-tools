@@ -1,0 +1,14 @@
+[project]
+name = "dev-tools"
+version = "0.1.0"
+description = "MindSpore downloader using pypdl"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiohttp>=3.12.13",
+    "beautifulsoup4>=4.13.4",
+    "httpx[http2]>=0.28.1",
+    "requests>=2.32.4",
+    "rich>=14.0.0",
+    "pypdl>=1.0.0",
+]
