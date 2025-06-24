@@ -15,6 +15,29 @@ except ImportError:
     # 如果导入失败，忽略警告禁用
     pass
 
+def get_proxy_settings():
+    """从环境变量获取代理设置，支持 Linux 标准格式"""
+    proxy_settings = {}
+    
+    # 检查 HTTP 代理（支持大小写变体）
+    http_proxy = os.environ.get('HTTP_PROXY') or os.environ.get('http_proxy')
+    if http_proxy:
+        proxy_settings['http'] = http_proxy
+    
+    # 检查 HTTPS 代理（支持大小写变体）
+    https_proxy = os.environ.get('HTTPS_PROXY') or os.environ.get('https_proxy')
+    if https_proxy:
+        proxy_settings['https'] = https_proxy
+    
+    # 检查通用代理
+    all_proxy = os.environ.get('ALL_PROXY') or os.environ.get('all_proxy')
+    if all_proxy and not proxy_settings:
+        proxy_settings['http'] = all_proxy
+        proxy_settings['https'] = all_proxy
+    
+    return proxy_settings if proxy_settings else None
+    pass
+
 # 设置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -47,8 +70,9 @@ def get_master_builds(date):
     """获取某日期下 master 分支的构建包目录"""
     yyyy_mm = date[:6]  # 提取 YYYYMM
     url = f"{BASE_URL}{yyyy_mm}/{date}/"
+    proxies = get_proxy_settings()
     try:
-        response = requests.get(url, verify=False)
+        response = requests.get(url, verify=False, proxies=proxies)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table', id='list')
@@ -104,8 +128,9 @@ def get_download_links(date, build, python_version=None):
     """获取构建包目录下的下载链接和文件大小，可根据 Python 版本过滤"""
     yyyy_mm = date[:6]
     build_url = f"{BASE_URL}{yyyy_mm}/{date}/{build}unified/aarch64/"
+    proxies = get_proxy_settings()
     try:
-        response = requests.get(build_url, verify=False)
+        response = requests.get(build_url, verify=False, proxies=proxies)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         table = soup.find('table', id='list')
@@ -145,6 +170,15 @@ def download_with_pypdl(urls_info, download_dir, max_workers):
     # 准备下载任务
     os.makedirs(download_dir, exist_ok=True)
     
+    # 获取代理设置
+    proxy_settings = get_proxy_settings()
+    proxy_url = None
+    if proxy_settings:
+        # pypdl 使用单个代理 URL，优先使用 HTTPS 代理
+        proxy_url = proxy_settings.get('https') or proxy_settings.get('http')
+        if proxy_url:
+            logger.info(f"使用代理: {proxy_url}")
+    
     # 创建 pypdl 下载器，启用重用模式进行并发下载
     dl = Pypdl(allow_reuse=True, max_concurrent=max_workers)
     
@@ -166,6 +200,7 @@ def download_with_pypdl(urls_info, download_dir, max_workers):
             'overwrite': True,
             'speed_limit': 0,  # 无速度限制
             'etag_validation': True,
+            'ssl': False,  # 禁用 SSL 验证
             'headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -175,6 +210,11 @@ def download_with_pypdl(urls_info, download_dir, max_workers):
                 'Referer': url.rsplit('/', 1)[0] + '/',
             }
         }
+        
+        # 如果有代理设置，添加到任务中
+        if proxy_url:
+            task['proxy'] = proxy_url
+            
         tasks.append(task)
         logger.info(f"准备下载: {filename}")
     
@@ -219,6 +259,13 @@ def main():
     parser.add_argument("--num_process", type=int, default=3, help="并行线程数")
     parser.add_argument("--python_version", help="指定 Python 版本（如 cp39, cp310, cp311），默认下载所有版本")
     args = parser.parse_args()
+
+    # 显示代理设置信息
+    proxy_settings = get_proxy_settings()
+    if proxy_settings:
+        logger.info(f"检测到代理设置: {proxy_settings}")
+    else:
+        logger.info("未检测到代理设置，使用直连")
 
     os.makedirs(args.download_dir, exist_ok=True)
     logger.info(f"下载目录: {args.download_dir}")

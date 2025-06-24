@@ -10,6 +10,8 @@
 - 🎯 支持按 Python 版本过滤下载
 - 📁 自动组织文件结构
 - 🛡️ ETag 校验确保文件完整性
+- 🔒 自动禁用 SSL 验证，确保网络兼容性
+- 🌐 支持 Linux 标准代理环境变量
 
 ## 环境要求
 
@@ -81,3 +83,32 @@ downloads/
 - 优化的并发控制
 - 智能重试机制
 - 缓存和校验机制
+- 禁用 SSL 验证以提高网络兼容性
+
+## 代理支持
+
+本工具完全支持 Linux 标准代理环境变量：
+
+```bash
+# 设置 HTTP 代理
+export HTTP_PROXY=http://proxy.company.com:8080
+export http_proxy=http://proxy.company.com:8080
+
+# 设置 HTTPS 代理
+export HTTPS_PROXY=http://proxy.company.com:8080
+export https_proxy=http://proxy.company.com:8080
+
+# 设置通用代理（如果未设置具体协议代理）
+export ALL_PROXY=http://proxy.company.com:8080
+export all_proxy=http://proxy.company.com:8080
+
+# 设置不使用代理的地址
+export NO_PROXY=localhost,127.0.0.1,.local
+export no_proxy=localhost,127.0.0.1,.local
+```
+
+工具会自动检测并使用这些环境变量中的代理设置。
+
+## 安全说明
+
+本工具默认禁用了 SSL 证书验证（`ssl=False`），这是为了确保在各种网络环境下都能正常工作。如果您需要启用 SSL 验证，请修改代码中的 `ssl` 参数为 `True`。
